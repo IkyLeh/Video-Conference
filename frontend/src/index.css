@@ -1,0 +1,14 @@
+/* src/index.css */
+/* frontend/src/index.css */
+/* frontend/src/index.css */
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+input,
+button {
+  font-size: 1em;
+  margin-top: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+}
