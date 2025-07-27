@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-
+import api from "../api/axios";
 // Impor komponen-komponen dari MUI
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
@@ -15,7 +15,7 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/register", {
+      const res = api.post("/auth/register", {
         username,
         password,
       });

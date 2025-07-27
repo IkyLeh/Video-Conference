@@ -168,7 +168,10 @@ const RoomPage = () => {
 
         setupRecording(stream);
 
-        socketRef.current = io.connect("http://localhost:5000");
+        socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
+          transports: ["websocket"],
+          withCredentials: true,
+        });
         socketRef.current.on("connect", () => {
           socketRef.current.emit("join-room", {
             roomID,
@@ -378,10 +381,11 @@ const RoomPage = () => {
       const formData = new FormData();
       formData.append("video", blob, `recording-${Date.now()}.webm`);
       try {
-        const res = await fetch("http://localhost:5000/api/upload", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
           method: "POST",
           body: formData,
         });
+
         const data = await res.json();
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -482,7 +486,7 @@ const RoomPage = () => {
   };
 
   const avatarUrl = userData?.avatar
-    ? `http://localhost:5000${userData.avatar}`
+    ? `${import.meta.env.VITE_API_URL}${userData.avatar}`
     : null;
 
   return (

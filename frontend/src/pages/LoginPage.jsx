@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
-
+import { useNavigate, Link as RouterLink } from "react-router-dom";
+import api from "../api/axios";
 // komponen-komponen dari MUI
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
-import Grid from '@mui/material/Grid';
+import Grid from "@mui/material/Grid";
 
 const LoginPage = ({ setToken }) => {
   const navigate = useNavigate();
@@ -18,17 +18,20 @@ const LoginPage = ({ setToken }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
-        username,
-        password,
-      });
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/auth/login`,
+        {
+          username,
+          password,
+        }
+      );
       localStorage.setItem("token", res.data.token);
       setToken(res.data.token);
       alert("Login berhasil!");
       navigate("/");
     } catch (err) {
       alert(
-        "Error: " + (err.response?.data?.msg || "Gagal terhubung ke server"),
+        "Error: " + (err.response?.data?.msg || "Gagal terhubung ke server")
       );
     }
   };
@@ -79,9 +82,12 @@ const LoginPage = ({ setToken }) => {
           >
             Login
           </Button>
-           <Grid container justifyContent="flex-end">
+          <Grid container justifyContent="flex-end">
             <Grid item>
-              <RouterLink to="/forgot-password" style={{ color: '#ffffffff', fontSize: '1.0rem' }}>
+              <RouterLink
+                to="/forgot-password"
+                style={{ color: "#ffffffff", fontSize: "1.0rem" }}
+              >
                 Lupa Password?
               </RouterLink>
             </Grid>
