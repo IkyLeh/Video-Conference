@@ -13,11 +13,19 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.2",
+    "buffer": "^6.0.3",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.16.1"
+    "mongoose": "^8.16.1",
+    "process": "^0.11.10",
+    "readable-stream": "^4.7.0",
+    "rollup-plugin-node-polyfills": "^0.2.1",
+    "simple-peer": "^9.11.1",
+    "socket.io-client": "^4.8.1",
+    "stream-browserify": "^3.0.0",
+    "styled-components": "^6.1.19"
   },
   "devDependencies": {
     "nodemon": "^3.1.10",

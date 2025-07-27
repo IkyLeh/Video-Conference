@@ -3,87 +3,132 @@ const connectDB = require("./config/db");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 
-// Objek untuk menyimpan data user di setiap room
+// --- DATA USER DALAM ROOM ---
 const usersInRoom = {};
 
+// --- KONFIGURASI SOCKET.IO ---
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // Sesuaikan dengan frontend kamu
     methods: ["GET", "POST"],
   },
 });
 
+// --- KONEKSI DATABASE ---
 connectDB();
 
+// --- MIDDLEWARE ---
 app.use(cors());
 app.use(express.json({ extended: false }));
 
-app.use('/uploads', express.static('uploads')); 
+// --- STATIC FILES ---
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// --- ROUTES ---
 app.use("/api/auth", require("./routes/auth"));
-app.use('/api/users', require('./routes/user'));
-app.use('/api/upload', require('./routes/upload'));
-app.use('/api/upload', require('./routes/upload'));
+app.use("/api/users", require("./routes/user"));
+app.use("/api/upload", require("./routes/upload"));
 
-
-// Logika Signaling Server
+// --- SOCKET.IO LOGIC ---
 io.on("connection", (socket) => {
-  console.log("User terhubung via socket:", socket.id);
+  console.log("🔌 Socket terhubung:", socket.id);
 
-  // --- MODIFIKASI: Saat seorang user bergabung ke room ---
+  // JOIN ROOM
   socket.on("join-room", ({ roomID, userName }) => {
-    // Jika room belum ada, buat baru
+    socket.join(roomID);
+
     if (!usersInRoom[roomID]) {
       usersInRoom[roomID] = [];
     }
 
-    // Beri tahu user yang baru bergabung tentang user lain yang sudah ada
-    const otherUsers = usersInRoom[roomID];
+    // Tolak jika userName sudah digunakan di room
+    const nameExists = usersInRoom[roomID].some(
+      (user) => user.userName === userName
+    );
+    if (nameExists) {
+      console.log(`⛔ userName '${userName}' sudah ada di room ${roomID}`);
+      socket.emit("name-already-exists");
+      return;
+    }
+
+    // Simpan user baru
+    const newUser = { id: socket.id, userName };
+    usersInRoom[roomID].push(newUser);
+    socket.roomID = roomID;
+    socket.userName = userName;
+
+    // Kirim daftar user yang sudah ada ke user baru
+    const otherUsers = usersInRoom[roomID].filter(
+      (user) => user.id !== socket.id
+    );
     socket.emit("all-users", otherUsers);
-    
-    // Tambahkan user baru ke daftar room
-    usersInRoom[roomID].push({ id: socket.id, userName });
-    
-    // Simpan roomID di socket untuk digunakan saat disconnect
-    socket.roomID = roomID; 
 
-    // Beri tahu user LAMA bahwa ada user BARU bergabung
-    // Kirim ID dan nama dari user yang baru bergabung
-    socket.to(roomID).emit("user-joined", { callerID: socket.id, userName });
-  });
-
-  // Meneruskan sinyal WebRTC dari satu user ke user lain
-  socket.on("sending-signal", (payload) => {
-    io.to(payload.userToSignal).emit("signal-received", {
-      signal: payload.signal,
-      callerID: payload.callerID,
+    // Beri tahu user lama tentang user baru
+    otherUsers.forEach((user) => {
+      io.to(user.id).emit("user-joined", {
+        callerID: socket.id,
+        userName,
+        signal: null, // biarkan client initiator kirim sinyal
+      });
     });
+
+    console.log(
+      `🧍 ${userName} (${socket.id}) masuk ke room ${roomID}. Total: ${usersInRoom[roomID].length}`
+    );
   });
 
-  // Meneruskan sinyal balasan dari user yang baru bergabung
-  socket.on("returning-signal", (payload) => {
-    io.to(payload.callerID).emit("receiving-returned-signal", {
-      signal: payload.signal,
+  // SENDING SIGNAL (WebRTC initiator)
+  socket.on(
+    "sending-signal",
+    ({ userToSignal, callerID, signal, userName }) => {
+      io.to(userToSignal).emit("signal-received", {
+        signal,
+        callerID,
+        userName,
+      });
+    }
+  );
+
+  // RETURNING SIGNAL (WebRTC responder)
+  socket.on("returning-signal", ({ signal, callerID }) => {
+    io.to(callerID).emit("receiving-returned-signal", {
+      signal,
       id: socket.id,
     });
   });
 
-  // --- TAMBAHAN: Saat user terputus ---
+  // DISCONNECT
   socket.on("disconnect", () => {
     const roomID = socket.roomID;
-    if (usersInRoom[roomID]) {
-      // Hapus user yang disconnect dari daftar
-      usersInRoom[roomID] = usersInRoom[roomID].filter(user => user.id !== socket.id);
-      // Beri tahu sisa user di room bahwa ada yang keluar
+    if (roomID && usersInRoom[roomID]) {
+      usersInRoom[roomID] = usersInRoom[roomID].filter(
+        (user) => user.id !== socket.id
+      );
+
       socket.to(roomID).emit("user-left", socket.id);
+
+      console.log(
+        `❌ Socket ${socket.id} keluar dari room ${roomID}. Sisa: ${usersInRoom[roomID].length}`
+      );
+
+      // Hapus room jika kosong
+      if (usersInRoom[roomID].length === 0) {
+        delete usersInRoom[roomID];
+        console.log(`🧹 Room ${roomID} dihapus karena kosong`);
+      }
+    } else {
+      console.log(`❌ Socket ${socket.id} disconnect tanpa room`);
     }
-    console.log("User terputus:", socket.id);
   });
 });
 
+// --- SERVER START ---
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server berjalan di port ${PORT}`));
+server.listen(PORT, () =>
+  console.log(`🚀 Server berjalan di http://localhost:${PORT}`)
+);
